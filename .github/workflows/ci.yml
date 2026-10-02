@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine:
+    name: Engine (shared physics + config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check every JavaScript file
+        run: for f in engine/*.js gnome/*.js; do node --check "$f"; done
+      - name: Engine unit tests
+        run: node --test 'engine/test/*.test.mjs'
+
+  gnome:
+    name: GNOME layer (mocked shell + real GTK prefs window)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Extension against the shell mock
+        run: node --test 'gnome/test/*.test.mjs'
+      - name: Install GJS, GTK 4, libadwaita, Xvfb
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gjs gir1.2-adw-1 gir1.2-gtk-4.0 xvfb
+      - name: Preferences window under Xvfb
+        run: bash gnome/test/prefs-xvfb.sh
+      - name: Installer dry run (symlinked layout, fake HOME)
+        run: |
+          export HOME="$RUNNER_TEMP/home"
+          mkdir -p "$HOME/.local/share/gnome-shell/extensions"
+          ln -s "$GITHUB_WORKSPACE" "$HOME/.local/share/gnome-shell/extensions/ball-on-a-string@local"
+          PATH=/usr/bin:/bin bash gnome/install.sh
+          test -f "$HOME/.local/share/gnome-shell/extensions/ball-on-a-string@local/physics.js"
+          test -x "$HOME/.local/bin/balls"
+          test -f "$HOME/.config/ball-on-a-string.json"
+          "$HOME/.local/bin/balls" off && grep -q '"visible": false' "$HOME/.config/ball-on-a-string.json"
+
+  macos:
+    name: macOS app (build + bridge tests)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build -c release
+        working-directory: macos
+      - name: Bridge and config tests
+        run: swift test
+        working-directory: macos
+      - name: Assemble the .app
+        run: bash build.sh
+        working-directory: macos
+      - name: Check the bundle
+        run: |
+          test -x "macos/build/Ball on a String.app/Contents/MacOS/BallOnAString"
+          test -f "macos/build/Ball on a String.app/Contents/Resources/physics.js"
+          plutil -lint "macos/build/Ball on a String.app/Contents/Info.plist"

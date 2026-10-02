@@ -51,6 +51,17 @@ To start it automatically at login: System Settings › General › Login Items 
 After changing code: quit the app, run `./build.sh --install` again.
 Changing settings never needs that.
 
+## Tests
+
+```bash
+node --test 'engine/test/*.test.mjs'     # physics and config (needs Node 22)
+node --test 'gnome/test/*.test.mjs'      # extension against a mocked shell
+gnome/test/prefs-xvfb.sh                 # real GTK settings window (needs gjs, libadwaita, xvfb)
+cd macos && swift test                   # Swift <-> engine bridge (needs Xcode's XCTest)
+```
+
+GitHub Actions runs all of these plus the macOS build on every push.
+
 ## License
 
 Apache License 2.0 — see `LICENSE`. Copyright 2026 Zoltan Guba.

@@ -17,5 +17,10 @@ let package = Package(
                 .linkedFramework("QuartzCore"),
             ]
         ),
+        .testTarget(
+            name: "BallOnAStringTests",
+            dependencies: ["BallOnAString"],
+            path: "Tests/BallOnAStringTests"
+        ),
     ]
 )
