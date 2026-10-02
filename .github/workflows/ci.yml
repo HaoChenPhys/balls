@@ -37,6 +37,7 @@ jobs:
       - name: Installer dry run (symlinked layout, fake HOME)
         run: |
           export HOME="$RUNNER_TEMP/home"
+          export XDG_CONFIG_HOME="$HOME/.config"
           mkdir -p "$HOME/.local/share/gnome-shell/extensions"
           ln -s "$GITHUB_WORKSPACE" "$HOME/.local/share/gnome-shell/extensions/ball-on-a-string@local"
           PATH=/usr/bin:/bin bash gnome/install.sh
