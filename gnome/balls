@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# balls — control the Ball on a String GNOME extension from the terminal.
+#
+#   balls on         show the balls
+#   balls off        hide the balls (stays hidden after reboot/login)
+#   balls toggle     flip between the two
+#   balls settings   open the preferences window
+#   balls status     ACTIVE / INACTIVE / ERROR, and whether the balls are shown
+#   balls log        show recent extension messages from the shell journal
+#
+# on/off/toggle only edit "visible" in ~/.config/ball-on-a-string.json; the
+# running extension watches that file and reacts immediately.
+set -euo pipefail
+
+UUID="ball-on-a-string@local"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/ball-on-a-string.json"
+
+set_visible() {   # $1 = true | false | toggle
+    mkdir -p "$(dirname "$CONFIG")"
+    python3 - "$CONFIG" "$1" <<'PY'
+import json, os, sys
+path, mode = sys.argv[1], sys.argv[2]
+cfg = {}
+if os.path.exists(path):
+    try:
+        with open(path) as f:
+            cfg = json.load(f)
+    except json.JSONDecodeError as e:
+        sys.exit(f"{path} is not valid JSON ({e}); fix it first")
+if not isinstance(cfg, dict):
+    sys.exit(f"{path} must contain a JSON object")
+current = cfg.get("visible", True)
+new = (not current) if mode == "toggle" else (mode == "true")
+cfg["visible"] = new
+tmp = path + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+os.replace(tmp, path)
+print("balls are now", "shown" if new else "hidden")
+PY
+}
+
+case "${1:-}" in
+    on)       set_visible true ;;
+    off)      set_visible false ;;
+    toggle)   set_visible toggle ;;
+    settings|prefs|config)
+              exec gnome-extensions prefs "$UUID" ;;
+    status)
+              gnome-extensions info "$UUID" | grep -E "State|Version" || true
+              if [ -e "$CONFIG" ]; then
+                  python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); print("Visible:", c.get("visible", True))' "$CONFIG"
+              else
+                  echo "Visible: True (no config file yet)"
+              fi ;;
+    log)
+              journalctl -b -o cat /usr/bin/gnome-shell | grep -iA5 "ball-on-a-string" | tail -40 ;;
+    *)
+              sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+              exit 1 ;;
+esac

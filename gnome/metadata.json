@@ -1,0 +1,7 @@
+{
+  "uuid": "ball-on-a-string@local",
+  "name": "Ball on a String",
+  "description": "A fidget toy: a ball on an elastic string hanging from the top of the screen. Grab it, fling it, watch it settle.",
+  "shell-version": ["50"],
+  "version": 1
+}
