@@ -1,5 +1,7 @@
 # Ball on a String
 
+[![CI](https://github.com/gubazoltan/balls/actions/workflows/ci.yml/badge.svg)](https://github.com/gubazoltan/balls/actions/workflows/ci.yml)
+
 A desktop fidget toy: balls on elastic strings hang from the top of the
 screen, above your windows. Grab, pull, fling. Clicks anywhere else pass
 through to the window underneath.
