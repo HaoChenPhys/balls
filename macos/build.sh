@@ -16,7 +16,8 @@ for f in "$ROOT/engine/physics.js" "$ROOT/engine/config.js"; do
 done
 
 echo "Compiling..."
-(cd "$HERE" && swift build -c release 2>&1 | tail -3)
+# (the XCTest/xcrun warning from command-line-tools-only installs is harmless: no tests here)
+(cd "$HERE" && swift build -c release 2>&1 | grep -v "XCTest\|xcrun: error" | tail -3)
 BIN="$(cd "$HERE" && swift build -c release --show-bin-path)/BallOnAString"
 [ -x "$BIN" ] || { echo "error: build produced no executable" >&2; exit 1; }
 

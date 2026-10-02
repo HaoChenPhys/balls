@@ -45,6 +45,10 @@ final class Engine {
             context.evaluateScript(source, withSourceURL: url)
             if let e = lastException { throw EngineError.jsException("\(name): \(e)") }
         }
+        // Fail loudly at startup rather than with cryptic errors later.
+        for name in ["DEFAULTS", "PALETTE", "parseConfig", "playAreaHeight", "Chain"] where global(name).isUndefined {
+            throw EngineError.jsException("\(name) is not defined after loading the engine files")
+        }
     }
 
     /// Where the engine files live: the app bundle's Resources when running as
@@ -72,10 +76,10 @@ final class Engine {
     /// Parse config text with the shared validation; returns the merged
     /// config as JSON text plus any warnings.
     func parseConfig(_ text: String) -> (json: String, warnings: [String]) {
-        let result = context.objectForKeyedSubscript("parseConfig").call(withArguments: [text])!
+        let result = global("parseConfig").call(withArguments: [text])!
         let cfg = result.atIndex(0)!
         let warnings = result.atIndex(1)!.toArray() as? [String] ?? []
-        let json = context.objectForKeyedSubscript("JSON").invokeMethod("stringify", withArguments: [cfg])!.toString()!
+        let json = global("JSON").invokeMethod("stringify", withArguments: [cfg])!.toString()!
         return (json, warnings)
     }
 
@@ -84,14 +88,14 @@ final class Engine {
     }
 
     func palette() -> [[Double]] {
-        return context.objectForKeyedSubscript("PALETTE").toArray() as? [[Double]] ?? [[0.9, 0.22, 0.25]]
+        return global("PALETTE").toArray() as? [[Double]] ?? [[0.9, 0.22, 0.25]]
     }
 
     // MARK: - physics.js
 
     func playAreaHeight(configJSON: String, screenHeight: Double) -> Double {
         let cfg = jsObject(fromJSON: configJSON)
-        return context.objectForKeyedSubscript("playAreaHeight")
+        return global("playAreaHeight")
             .call(withArguments: [cfg, screenHeight])!.toDouble()
     }
 
@@ -101,12 +105,21 @@ final class Engine {
             "anchorX": area.anchorX, "anchorY": area.anchorY,
             "left": area.left, "right": area.right, "top": area.top, "bottom": area.bottom,
         ]
-        let js = context.objectForKeyedSubscript("Chain").construct(withArguments: [cfg, areaDict])!
+        let js = global("Chain").construct(withArguments: [cfg, areaDict])!
         return Chain(js: js)
     }
 
+    /// Look up a top-level name from the engine scripts. Must be done by
+    /// evaluating the name, not via objectForKeyedSubscript on the global
+    /// object: in a classic script, top-level `const` and `class` declarations
+    /// (DEFAULTS, PALETTE, Chain) live in the script scope and are NOT
+    /// properties of the global object, while `function` declarations are.
+    private func global(_ name: String) -> JSValue {
+        return context.evaluateScript(name)
+    }
+
     private func jsObject(fromJSON text: String) -> JSValue {
-        return context.objectForKeyedSubscript("JSON").invokeMethod("parse", withArguments: [text])!
+        return global("JSON").invokeMethod("parse", withArguments: [text])!
     }
 }
 
