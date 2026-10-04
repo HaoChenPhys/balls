@@ -19,6 +19,7 @@ struct BallConfig: Codable, Identifiable, Equatable {
 
 struct Config: Codable, Equatable {
     var visible: Bool
+    var showOnLogin: Bool      // used by the GNOME layer; kept here so saving never drops it
     var anchorFrac: Double
     var anchorRadius: Double
     var anchorColor: [Double]

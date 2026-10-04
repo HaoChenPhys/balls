@@ -4,8 +4,8 @@
 // What this covers: lifecycle (enable/disable/rebuild leaves nothing behind),
 // actor layout, the press/drag/release path through Clutter-style events, the
 // frame loop stopping when the engine sleeps, config reload incl. visible on/off,
-// and that the repaint handlers run. What it cannot cover: the real GJS
-// bindings; those are only exercised on a real GNOME Shell.
+// the hidden-at-login rule, and that the repaint handlers run. What it cannot
+// cover: the real GJS bindings; those are only exercised on a real GNOME Shell.
 import {test, before} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, mkdtempSync} from 'node:fs';
@@ -19,16 +19,18 @@ import {DEFAULTS, deepCopy} from '../../engine/config.js';
 const clock = {now: 0};
 const mock = makeShellMock(clock);
 let currentConfig = deepCopy(DEFAULTS);
+const writtenConfigs = [];           // what the extension wrote via writeConfig()
 mock.modules['./configIO.js'] = {
     CONFIG_PATH: '/mock/ball-on-a-string.json',
     readConfig: () => [deepCopy(currentConfig), []],
+    writeConfig: cfg => { currentConfig = deepCopy(cfg); writtenConfigs.push(deepCopy(cfg)); },
 };
 globalThis.__mods = mock.modules;
 
-let Extension;
-before(async () => {
-    // Rewrite the platform imports of extension.js to the mock table; keep the
-    // engine import real (resolved against engine/).
+// Rewrite the platform imports of extension.js to the mock table; keep the
+// engine import real (resolved against engine/). Each call imports a fresh
+// copy of the module, i.e. simulates a fresh GNOME Shell session (login).
+async function loadExtensionModule() {
     const here = new URL('.', import.meta.url);
     let src = readFileSync(new URL('../extension.js', here), 'utf8');
     src = src.replace(/^import (\* as )?([A-Za-z]+|\{[A-Za-z_, ]+\}) from '(gi:\/\/[^']+|cairo|resource:[^']+|\.\/configIO\.js)';/gm,
@@ -38,7 +40,21 @@ before(async () => {
     const dir = mkdtempSync(join(tmpdir(), 'balls-ext-'));
     const file = join(dir, 'extension.mjs');
     writeFileSync(file, src);
-    ({default: Extension} = await import(pathToFileURL(file).href));
+    return (await import(pathToFileURL(file).href)).default;
+}
+
+let Extension;
+before(async () => {
+    Extension = await loadExtensionModule();
+    // The shared module below is "logged in" with showOnLogin so that the
+    // first enable() of each test builds the scene; the login rule itself is
+    // exercised on fresh modules in the tests at the bottom.
+    currentConfig.showOnLogin = true;
+    const ext = new Extension();
+    ext.enable();
+    ext.disable();
+    currentConfig = deepCopy(DEFAULTS);
+    writtenConfigs.length = 0;
 });
 
 const lm = () => mock.layoutManager;
@@ -145,4 +161,59 @@ test('disable during a drag dismisses the grab and destroys all actors', () => {
     assert.equal(lm().chrome.length, 0);
     assert.equal(mock.fileMonitors.at(-1).cancelled, true);
     assert.equal(mock.timers.size, 0);
+});
+
+test('login: visible=true is reset to false in the config and nothing is built', async () => {
+    const FreshExtension = await loadExtensionModule();
+    currentConfig = deepCopy(DEFAULTS);           // visible: true, showOnLogin: false
+    writtenConfigs.length = 0;
+    const ext = new FreshExtension();
+    ext.enable();
+    assert.equal(lm().chrome.length, 0, 'starts hidden');
+    assert.equal(ext._timeline, null);
+    assert.equal(writtenConfigs.length, 1, 'hidden state recorded in the config file');
+    assert.equal(writtenConfigs[0].visible, false);
+    assert.equal(writtenConfigs[0].showOnLogin, false, 'only "visible" changes');
+    assert.deepEqual(Object.keys(writtenConfigs[0]).sort(), Object.keys(DEFAULTS).sort());
+    assert.ok(!mock.fileMonitors.at(-1).cancelled, 'still watching the config');
+
+    // `balls on` edits the file -> the balls appear.
+    currentConfig.visible = true;
+    mock.fireFileChanged();
+    mock.fireTimers();
+    assert.equal(lm().chrome.length, 3);
+
+    // Screen lock / unlock: disable() + enable() in the same session must not
+    // hide them again or write the file again.
+    ext.disable();
+    assert.equal(lm().chrome.length, 0);
+    ext.enable();
+    assert.equal(lm().chrome.length, 3, 'unlock keeps the balls');
+    assert.equal(writtenConfigs.length, 1);
+    ext.disable();
+    currentConfig = deepCopy(DEFAULTS);
+});
+
+test('login with showOnLogin=true keeps visible as it was and writes nothing', async () => {
+    const FreshExtension = await loadExtensionModule();
+    currentConfig = {...deepCopy(DEFAULTS), showOnLogin: true};
+    writtenConfigs.length = 0;
+    const ext = new FreshExtension();
+    ext.enable();
+    assert.equal(lm().chrome.length, 3);
+    assert.equal(writtenConfigs.length, 0);
+    ext.disable();
+    currentConfig = deepCopy(DEFAULTS);
+});
+
+test('login with visible already false writes nothing', async () => {
+    const FreshExtension = await loadExtensionModule();
+    currentConfig = {...deepCopy(DEFAULTS), visible: false};
+    writtenConfigs.length = 0;
+    const ext = new FreshExtension();
+    ext.enable();
+    assert.equal(lm().chrome.length, 0);
+    assert.equal(writtenConfigs.length, 0);
+    ext.disable();
+    currentConfig = deepCopy(DEFAULTS);
 });

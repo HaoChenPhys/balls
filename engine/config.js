@@ -9,6 +9,8 @@
 // Colours are [r, g, b] (balls) or [r, g, b, a] (string, anchor) in 0..1.
 export const DEFAULTS = {
     visible: true,           // false => the app/extension stays loaded but shows nothing
+    showOnLogin: false,      // false => the GNOME extension resets visible to false at login,
+                             //          so the balls appear only after an explicit `balls on`
 
     // Where the chain is attached along the top edge: 0 = left, 0.5 = centre, 1 = right.
     anchorFrac: 0.5,

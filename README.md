@@ -24,10 +24,14 @@ The toy is a GNOME Shell extension. Control it from a terminal:
 
 ```bash
 balls on          # show
-balls off         # hide (stays hidden after reboot)
+balls off         # hide
 balls settings    # settings window
 balls log         # if something goes wrong
 ```
+
+After logging in the balls are hidden until you run `balls on`. If you
+would rather have them come back as you left them, turn on "Show at login"
+in `balls settings`.
 
 After changing code: run `gnome/install.sh` again and log out/in.
 Changing settings never needs that.

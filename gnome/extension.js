@@ -7,7 +7,9 @@
 //   * forwards pointer events to the engine,
 //   * runs the frame clock (Clutter.Timeline bound to the canvas) while the
 //     engine is awake and paints what the engine reports,
-//   * watches ~/.config/ball-on-a-string.json and rebuilds on change.
+//   * watches ~/.config/ball-on-a-string.json and rebuilds on change,
+//   * at login, unless "showOnLogin" is set, writes visible=false to the
+//     config so the balls stay away until `balls on` / the settings switch.
 //
 // Verified against the Mutter / GJS / gnome-shell "gnome-50" branches:
 //   * Clutter.Timeline has a G_PARAM_CONSTRUCT "actor" property.
@@ -30,9 +32,16 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {Chain, playAreaHeight} from './physics.js';
-import {CONFIG_PATH, readConfig} from './configIO.js';
+import {CONFIG_PATH, readConfig, writeConfig} from './configIO.js';
 
 const RELOAD_DEBOUNCE_MS = 300;
+
+// GNOME Shell imports this module once per session (at login) and then calls
+// enable()/disable() on the same instance, also around every screen lock
+// (session-modes defaults to ["user"], so locking disables, unlocking
+// re-enables). This flag tells the first enable() of the session, i.e. the
+// login, apart from those later re-enables.
+let loginHandled = false;
 
 export default class BallOnAStringExtension extends Extension {
     enable() {
@@ -55,6 +64,10 @@ export default class BallOnAStringExtension extends Extension {
         // disable(), so anything left behind would stay until the next login.
         try {
             this._cfg = this._loadConfig();
+            if (!loginHandled) {
+                loginHandled = true;
+                this._applyLoginVisibility();
+            }
             this._monitorsId = Main.layoutManager.connect(
                 'monitors-changed', () => this._rebuild());
             this._watchConfig();
@@ -75,6 +88,23 @@ export default class BallOnAStringExtension extends Extension {
         for (const w of warnings)
             log(`ball-on-a-string: ${w}`);
         return cfg;
+    }
+
+    // Once per session: unless the user opted into "show at login", start
+    // hidden. The hidden state is written to the config file (not just kept in
+    // memory) so that the file stays the single source of truth: `balls on`,
+    // `balls status` and the settings switch all read and write "visible" there.
+    _applyLoginVisibility() {
+        if (this._cfg.showOnLogin || !this._cfg.visible)
+            return;
+        this._cfg.visible = false;
+        try {
+            writeConfig(this._cfg);
+        } catch (e) {
+            // Still start hidden; the file just keeps saying visible=true until
+            // the next `balls on|off` rewrites it.
+            logError(e, 'ball-on-a-string: could not record hidden state in config');
+        }
     }
 
     _watchConfig() {

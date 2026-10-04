@@ -73,8 +73,12 @@ function buildGeneralGroup(cfg, save) {
     const group = new Adw.PreferencesGroup({title: 'General'});
 
     group.add(switchRow('Show the balls',
-        'Turn off to hide the toy. It stays hidden after logging in until turned on again.',
+        'Turn off to hide the toy (same as `balls off`).',
         cfg.visible, v => { cfg.visible = v; save(); }));
+
+    group.add(switchRow('Show at login',
+        'Off: the balls stay hidden after every login until you turn them on. On: they come back as you left them.',
+        cfg.showOnLogin, v => { cfg.showOnLogin = v; save(); }));
 
     group.add(spinRow('Anchor position', '0 = left edge, 0.5 = centre, 1 = right edge',
         cfg.anchorFrac, 0, 1, 0.05, 2, v => { cfg.anchorFrac = v; save(); }));

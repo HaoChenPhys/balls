@@ -226,6 +226,9 @@ test('mergeConfig: empty balls list and non-object input fall back to defaults',
 test('parseConfig / serializeConfig round-trip; broken JSON yields defaults plus a warning', () => {
     const [cfg] = parseConfig(serializeConfig({...deepCopy(DEFAULTS), visible: false}));
     assert.equal(cfg.visible, false);
+    assert.equal(cfg.showOnLogin, false, 'hidden at login is the default');
+    assert.equal(parseConfig('{"showOnLogin": true}')[0].showOnLogin, true);
+    assert.equal(parseConfig('{"showOnLogin": "yes"}')[1].length, 1, 'wrong type is rejected with a warning');
     const [bad, warnings] = parseConfig('{ nope');
     assert.equal(bad.damping, DEFAULTS.damping);
     assert.equal(warnings.length, 1);

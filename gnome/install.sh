@@ -71,7 +71,8 @@ cat <<EOF
 Code changed => log out and log back in (Wayland loads extension code only at
 login). Afterwards:
     balls status       state of the extension and whether the balls are shown
-    balls on | off     show / hide (persists across logins)
+    balls on | off     show / hide (hidden again after each login unless
+                       "Show at login" is turned on in balls settings)
     balls settings     preferences window
     balls log          recent messages from the shell journal
 EOF

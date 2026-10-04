@@ -1,5 +1,6 @@
 {
   "visible": true,
+  "showOnLogin": false,
   "anchorFrac": 0.5,
   "gravity": 2200,
   "damping": 0.6,

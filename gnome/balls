@@ -2,14 +2,16 @@
 # balls — control the Ball on a String GNOME extension from the terminal.
 #
 #   balls on         show the balls
-#   balls off        hide the balls (stays hidden after reboot/login)
+#   balls off        hide the balls
 #   balls toggle     flip between the two
 #   balls settings   open the preferences window
 #   balls status     ACTIVE / INACTIVE / ERROR, and whether the balls are shown
 #   balls log        show recent extension messages from the shell journal
 #
 # on/off/toggle only edit "visible" in ~/.config/ball-on-a-string.json; the
-# running extension watches that file and reacts immediately.
+# running extension watches that file and reacts immediately. After a login
+# the balls start hidden; turn on "Show at login" in `balls settings` to have
+# them come back as you left them.
 set -euo pipefail
 
 UUID="ball-on-a-string@local"
