@@ -36,6 +36,9 @@ in `balls settings`.
 After changing code: run `gnome/install.sh` again and log out/in.
 Changing settings never needs that.
 
+To remove it: `balls/gnome/install.sh --uninstall` (add `--purge` to delete
+your settings file as well).
+
 ## Install on macOS
 
 1. Get the project: `git clone https://github.com/gubazoltan/balls`
@@ -56,6 +59,9 @@ To start it automatically at login: System Settings › General › Login Items 
 
 After changing code: quit the app, run `./build.sh --install` again.
 Changing settings never needs that.
+
+To remove it: `./build.sh --uninstall` (add `--purge` to delete your settings
+file as well), and take it out of Login Items if you added it there.
 
 ## Tests
 

@@ -2,14 +2,40 @@
 # Build Ball on a String for macOS and assemble a double-clickable .app.
 #
 # Needs the Xcode command-line tools (xcode-select --install), nothing else.
-#   ./build.sh            -> build/Ball on a String.app
-#   ./build.sh --install  -> also copy it to /Applications and launch it
+#   ./build.sh              -> build/Ball on a String.app
+#   ./build.sh --install    -> also copy it to /Applications and launch it
+#   ./build.sh --uninstall  -> quit the app and remove it from /Applications
+#                              (keeps ~/.config/ball-on-a-string.json; add
+#                              --purge to delete that too)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"      # .../macos
 ROOT="$(cd "$HERE/.." && pwd)"                            # repo root
 APP_NAME="Ball on a String"
 APP="$HERE/build/$APP_NAME.app"
+CONFIG="$HOME/.config/ball-on-a-string.json"
+
+if [ "${1:-}" = "--uninstall" ]; then
+    # Ask the running app to quit (it saves its config on the way out). Only
+    # when it is actually running: osascript would otherwise try to find it.
+    if pgrep -x BallOnAString >/dev/null 2>&1; then
+        osascript -e "tell application \"$APP_NAME\" to quit" 2>/dev/null || pkill -x BallOnAString || true
+        sleep 1
+    fi
+    for d in "/Applications/$APP_NAME.app" "$APP"; do
+        if [ -e "$d" ]; then
+            rm -rf "$d"; echo "Removed $d"
+        fi
+    done
+    if [ "${2:-}" = "--purge" ]; then
+        rm -f "$CONFIG" && echo "Removed $CONFIG"
+    elif [ -e "$CONFIG" ]; then
+        echo "Kept your settings in $CONFIG (re-run with --uninstall --purge to delete them)"
+    fi
+    echo "Done. If you had added the app under System Settings > General > Login Items, remove it there too."
+    exit 0
+fi
+case "${1:-}" in ""|--install) ;; *) echo "usage: $0 [--install | --uninstall [--purge]]" >&2; exit 1 ;; esac
 
 for f in "$ROOT/engine/physics.js" "$ROOT/engine/config.js"; do
     [ -f "$f" ] || { echo "error: missing $f" >&2; exit 1; }

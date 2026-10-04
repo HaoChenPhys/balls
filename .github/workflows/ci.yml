@@ -45,6 +45,23 @@ jobs:
           test -x "$HOME/.local/bin/balls"
           test -f "$HOME/.config/ball-on-a-string.json"
           "$HOME/.local/bin/balls" off && grep -q '"visible": false' "$HOME/.config/ball-on-a-string.json"
+      - name: Uninstaller dry run (same fake HOME)
+        run: |
+          export HOME="$RUNNER_TEMP/home"
+          export XDG_CONFIG_HOME="$HOME/.config"
+          EXT="$HOME/.local/share/gnome-shell/extensions/ball-on-a-string@local"
+          PATH=/usr/bin:/bin bash gnome/install.sh --uninstall
+          test ! -e "$EXT"
+          test ! -e "$HOME/.local/bin/balls"
+          test -f "$HOME/.config/ball-on-a-string.json"      # settings survive without --purge
+          PATH=/usr/bin:/bin bash gnome/install.sh --uninstall --purge
+          test ! -e "$HOME/.config/ball-on-a-string.json"
+          # A symlinked extension dir: only the link may go, never the project behind it.
+          ln -s "$GITHUB_WORKSPACE" "$EXT"
+          PATH=/usr/bin:/bin bash gnome/install.sh --uninstall
+          test ! -L "$EXT" && test -f "$GITHUB_WORKSPACE/gnome/install.sh"
+          # Unknown flags are refused instead of installing.
+          ! bash gnome/install.sh --bogus
 
   macos:
     name: macOS app (build + bridge tests)
@@ -65,3 +82,14 @@ jobs:
           test -x "macos/build/Ball on a String.app/Contents/MacOS/BallOnAString"
           test -f "macos/build/Ball on a String.app/Contents/Resources/physics.js"
           plutil -lint "macos/build/Ball on a String.app/Contents/Info.plist"
+      - name: Uninstaller dry run (fake HOME, app not installed)
+        run: |
+          export HOME="$RUNNER_TEMP/home"
+          mkdir -p "$HOME/.config" && echo '{}' > "$HOME/.config/ball-on-a-string.json"
+          bash build.sh --uninstall
+          test ! -e "build/Ball on a String.app"
+          test -f "$HOME/.config/ball-on-a-string.json"      # settings survive without --purge
+          bash build.sh --uninstall --purge
+          test ! -e "$HOME/.config/ball-on-a-string.json"
+          ! bash build.sh --bogus
+        working-directory: macos
