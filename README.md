@@ -14,6 +14,8 @@ gnome/    GNOME Shell extension
 macos/    Mac app
 ```
 
+![til](./assets/balls.gif)
+
 ## Install on GNOME
 
 1. Get the project: `git clone https://github.com/gubazoltan/balls`
